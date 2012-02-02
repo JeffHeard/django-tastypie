@@ -1467,6 +1467,7 @@ class ModelResource(Resource):
 
     @classmethod
     def api_field_from_django_field(cls, f, default=fields.CharField):
+        # TODO add new field types here.
         """
         Returns the field type that would likely be associated with each
         Django type.
@@ -1487,6 +1488,9 @@ class ModelResource(Resource):
             result = fields.FileField
         elif f.get_internal_type() == 'TimeField':
             result = fields.TimeField
+        elif f.get_internal_type() in ('GeometryCollectionField','GeometryField','PointField','MultiPointField','LineStringField','MultiLineStringField','PolygonField','MultiPolygonField'):
+            result = fields.GeometryField
+
         # TODO: Perhaps enable these via introspection. The reason they're not enabled
         #       by default is the very different ``__init__`` they have over
         #       the other fields.

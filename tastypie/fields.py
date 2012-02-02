@@ -7,6 +7,8 @@ from django.utils import datetime_safe, importlib
 from tastypie.bundle import Bundle
 from tastypie.exceptions import ApiFieldError, NotFound
 from tastypie.utils import dict_strip_unicode_keys, make_aware
+from django.contrib.gis.geos import GEOSGeometry
+import json
 
 
 class NOT_PROVIDED:
@@ -166,6 +168,17 @@ class ApiField(object):
                 raise ApiFieldError("The '%s' field has no data and doesn't allow a default or null value." % self.instance_name)
 
         return bundle.data[self.instance_name]
+
+
+class GeometryField(ApiField):
+    dehydrated_type = 'dict'
+
+    def convert(self, value):
+        if value is None:
+            return None
+
+        return json.loads(GEOSGeometry(value).geojson)
+
 
 
 class CharField(ApiField):
