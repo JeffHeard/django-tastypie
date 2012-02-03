@@ -323,12 +323,21 @@ class Resource(object):
         """
         options = options or {}
 
+        if 'application/javascript' in format:
+            srid = request.GET.get('srid',None)
+            if srid:
+                options['srid'] = srid
+
         if 'text/javascript' in format:
             # get JSONP callback name. default to "callback"
             callback = request.GET.get('callback', 'callback')
+            srid = request.GET.get('srid',None)
 
             if not is_valid_jsonp_callback_value(callback):
                 raise BadRequest('JSONP callback name is invalid.')
+
+            if srid:
+                options['srid'] = srid
 
             options['callback'] = callback
 
@@ -982,8 +991,15 @@ class Resource(object):
 
         Mostly a useful shortcut/hook.
         """
+
+
+
         desired_format = self.determine_format(request)
-        serialized = self.serialize(request, data, desired_format)
+        if request.REQUEST.get('format','json').startswith('geo'):
+            serialized = self.serialize(request, data, desired_format, options={'geo' : True, 'srid' : request.REQUEST.get('srid', None)})
+        else:
+            serialized = self.serialize(request, data, desired_format)
+
         return response_class(content=serialized, content_type=build_content_type(desired_format), **response_kwargs)
 
     def is_valid(self, bundle, request=None):

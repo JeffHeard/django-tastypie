@@ -331,9 +331,12 @@ class Serializer(object):
         Given some Python data, produces JSON output.
         """
         options = options or {}
-        data = self.to_simple(data, options)
 
-        return simplejson.dumps(data, cls=json.DjangoJSONEncoder, sort_keys=True)
+        if 'geo' in options:
+            return self.to_geojson(data, options)
+        else:
+            data = self.to_simple(data, options)
+            return simplejson.dumps(data, cls=json.DjangoJSONEncoder, sort_keys=True)
 
     def to_geojson(self, data, options=None):
         """
@@ -349,20 +352,25 @@ class Serializer(object):
 
             for index, obj in enumerate(data['features']):
                 for key, value in obj.items():
+
                     if hasattr(value, 'lower') and (value.lower().split('(')[0].strip() in ('point', 'multipoint', 'linestring','multilinestring','polygon','multipolygon')):
-                        geometry = simplejson.loads(GEOSGeometry(value).geojson)
+                        if options['srid']:
+                            srid = options['srid']
+                            try:
+                                srid=int(srid)
+                            except ValueError:
+                                pass
+
+                            geometry = GEOSGeometry(value)
+                            geometry.transform(srid)
+                            geometry = simplejson.loads(geometry.geojson)
+                        else:
+                            geometry = simplejson.loads(GEOSGeometry(value).geojson)
+
                         geojson = { 'geometry' : geometry, 'properties' : obj, 'type' : "Feature" }
                         data['features'][index] = geojson
 
         return simplejson.dumps(data, cls=json.DjangoJSONEncoder, sort_keys=True)
-
-    def to_geojsonp(self, data, options=None):
-        """
-        Given some Python data, produces GeoJSON output wrapped in the provided
-        callback.
-        """
-        options = options or {}
-        return '%s(%s)' % (options['callback'], self.to_geojson(data, options))
 
     def from_geojson(self, content):
         """
