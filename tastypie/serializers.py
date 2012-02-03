@@ -8,6 +8,7 @@ from django.utils.encoding import force_unicode
 from tastypie.bundle import Bundle
 from tastypie.exceptions import UnsupportedFormat
 from tastypie.utils import format_datetime, format_date, format_time, make_naive
+from django.contrib.gis.geos import GEOSGeometry
 try:
     import lxml
     from lxml.etree import parse as parse_xml
@@ -348,9 +349,8 @@ class Serializer(object):
 
             for index, obj in enumerate(data['features']):
                 for key, value in obj.items():
-                    if isinstance(value, dict) and 'type' in value and value['type'] in ('Point', 'MultiPoint', 'LineString','MultiLineString','Polygon','MultiPolygon'):
-                        geometry = value
-                        del obj[key]
+                    if hasattr(value, 'lower') and (value.lower().split('(')[0].strip() in ('point', 'multipoint', 'linestring','multilinestring','polygon','multipolygon')):
+                        geometry = simplejson.loads(GEOSGeometry(value).geojson)
                         geojson = { 'geometry' : geometry, 'properties' : obj, 'type' : "Feature" }
                         data['features'][index] = geojson
 
@@ -363,6 +363,21 @@ class Serializer(object):
         """
         options = options or {}
         return '%s(%s)' % (options['callback'], self.to_geojson(data, options))
+
+    def from_geojson(self, content):
+        """
+        Given some GeoJSON data, returns a python dictionary of the decoded data.
+        """
+        first_pass = self.from_json(content)
+        first_pass['objects'] = first_pass['features']
+        del first_pass['type']
+        del first_pass['features']
+        for i, obj in enumerate(first_pass['objects']):
+            first_pass['objects'][i] = obj['properties']
+            del obj
+
+
+
 
     def from_json(self, content):
         """

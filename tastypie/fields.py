@@ -177,7 +177,7 @@ class GeometryField(ApiField):
         if value is None:
             return None
 
-        return json.loads(GEOSGeometry(value).geojson)
+        return GEOSGeometry(value).wkt
 
 
 
