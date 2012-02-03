@@ -70,8 +70,10 @@ class Serializer(object):
     various format methods (i.e. ``to_json``), by changing the
     ``formats/content_types`` options or by altering the other hook methods.
     """
-    formats = ['json', 'jsonp', 'xml', 'yaml', 'html', 'plist']
+    formats = ['geojson', 'geojsonp', 'json', 'jsonp', 'xml', 'yaml', 'html', 'plist']
     content_types = {
+        'geojson' : 'application/json',
+        'geojsonp' : 'text/javascript',
         'json': 'application/json',
         'jsonp': 'text/javascript',
         'xml': 'application/xml',
@@ -329,7 +331,38 @@ class Serializer(object):
         """
         options = options or {}
         data = self.to_simple(data, options)
+
         return simplejson.dumps(data, cls=json.DjangoJSONEncoder, sort_keys=True)
+
+    def to_geojson(self, data, options=None):
+        """
+        Given some Python data, produces GeoJSON output.
+        """
+        options = options or {}
+        data = self.to_simple(data, options)
+
+        if 'objects' in data:
+            data['type'] = "FeatureCollection"
+            data['features'] = data['objects']
+            del data['objects']
+
+            for index, obj in enumerate(data['features']):
+                for key, value in obj.items():
+                    if isinstance(value, dict) and 'type' in value and value['type'] in ('Point', 'MultiPoint', 'LineString','MultiLineString','Polygon','MultiPolygon'):
+                        geometry = value
+                        del obj[key]
+                        geojson = { 'geometry' : geometry, 'properties' : obj, 'type' : "Feature" }
+                        data['features'][index] = geojson
+
+        return simplejson.dumps(data, cls=json.DjangoJSONEncoder, sort_keys=True)
+
+    def to_geojsonp(self, data, options=None):
+        """
+        Given some Python data, produces GeoJSON output wrapped in the provided
+        callback.
+        """
+        options = options or {}
+        return '%s(%s)' % (options['callback'], self.to_geojson(data, options))
 
     def from_json(self, content):
         """
