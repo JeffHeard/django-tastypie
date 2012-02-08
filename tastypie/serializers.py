@@ -366,7 +366,8 @@ class Serializer(object):
                             geometry = simplejson.loads(geometry.geojson)
                         else:
                             geometry = simplejson.loads(GEOSGeometry(value).geojson)
-
+                        
+                        del obj[key]
                         geojson = { 'geometry' : geometry, 'properties' : obj, 'type' : "Feature" }
                         data['features'][index] = geojson
 
